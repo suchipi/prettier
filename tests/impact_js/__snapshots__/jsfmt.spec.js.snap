@@ -1,0 +1,69 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`impact-js.js 1`] = `
+====================================options=====================================
+parsers: ["babel"]
+printWidth: 80
+                                                                                | printWidth
+=====================================input======================================
+ig.module(
+  "game.entities.player"
+)
+.requires(
+  "impact.entity",
+  "impact.animation"
+)
+.defines(function() {
+  PlayerEntity = {};
+});
+
+ig.module(
+  "game.entities.player"
+)
+.requires(
+  "impact.entity",
+  "impact.animation"
+)
+.defines(() => {
+  PlayerEntity = {};
+});
+
+ig.module(
+	'impact.image'
+)
+.defines(function(){ "use strict";
+  ig.Image = {};
+});
+
+ig.module(
+	'impact.image'
+)
+.defines(() => { "use strict";
+  ig.Image = {};
+});
+
+=====================================output=====================================
+ig.module("game.entities.player")
+  .requires("impact.entity", "impact.animation")
+  .defines(function() {
+    PlayerEntity = {};
+  });
+
+ig.module("game.entities.player")
+  .requires("impact.entity", "impact.animation")
+  .defines(() => {
+    PlayerEntity = {};
+  });
+
+ig.module("impact.image").defines(function() {
+  "use strict";
+  ig.Image = {};
+});
+
+ig.module("impact.image").defines(() => {
+  "use strict";
+  ig.Image = {};
+});
+
+================================================================================
+`;
