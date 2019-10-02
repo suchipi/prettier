@@ -50,6 +50,7 @@ const {
 } = require("./utils");
 
 const needsQuoteProps = new WeakMap();
+const hackyImpactBlock = new WeakMap();
 
 const {
   builders: {
@@ -1063,9 +1064,15 @@ function printPathNoParens(path, options, print, args) {
       return "import";
     case "TSModuleBlock":
     case "BlockStatement": {
-      const naked = path.call(bodyPath => {
+      let naked = path.call(bodyPath => {
         return printStatementSequence(bodyPath, options, print);
       }, "body");
+
+      const isImpactBlock = hackyImpactBlock.has(n);
+
+      if (isImpactBlock) {
+        naked = concat([hardline, naked, hardline]);
+      }
 
       const hasContent = n.body.find(node => node.type !== "EmptyStatement");
       const hasDirectives = n.directives && n.directives.length > 0;
@@ -1094,11 +1101,14 @@ function printPathNoParens(path, options, print, args) {
 
       parts.push("{");
 
+      const maybeIndent = isImpactBlock ? a => a : indent;
+
       // Babel 6
       if (hasDirectives) {
         path.each(childPath => {
-          parts.push(indent(concat([hardline, print(childPath), semi])));
+          parts.push(maybeIndent(concat([hardline, print(childPath), semi])));
           if (
+            !isImpactBlock &&
             isNextLineEmpty(options.originalText, childPath.getValue(), options)
           ) {
             parts.push(hardline);
@@ -1107,7 +1117,7 @@ function printPathNoParens(path, options, print, args) {
       }
 
       if (hasContent) {
-        parts.push(indent(concat([hardline, naked])));
+        parts.push(maybeIndent(concat([hardline, naked])));
       }
 
       parts.push(comments.printDanglingComments(path, options));
@@ -1162,6 +1172,106 @@ function printPathNoParens(path, options, print, args) {
     case "OptionalCallExpression":
     case "CallExpression": {
       const isNew = n.type === "NewExpression";
+
+      if (
+        // ig.module(...).requires(...).defines(fn)
+        n.callee.type === "MemberExpression" &&
+        n.callee.property.type === "Identifier" &&
+        n.callee.property.name === "defines" &&
+        n.callee.object.type === "CallExpression" &&
+        n.callee.object.callee.property.type === "Identifier" &&
+        n.callee.object.callee.property.name === "requires" &&
+        n.callee.object.callee.object.type === "CallExpression" &&
+        n.callee.object.callee.object.callee.type === "MemberExpression" &&
+        n.callee.object.callee.object.callee.object.type === "Identifier" &&
+        n.callee.object.callee.object.callee.object.name === "ig" &&
+        n.callee.object.callee.object.callee.property.type === "Identifier" &&
+        n.callee.object.callee.object.callee.property.name === "module" &&
+        n.arguments.length === 1 &&
+        (n.arguments[0].type === "FunctionExpression" ||
+          n.arguments[0].type === "ArrowFunctionExpression")
+      ) {
+        hackyImpactBlock.set(n.arguments[0].body, true);
+
+        return concat([
+          "ig.module(",
+          indent(
+            concat([
+              hardline,
+              join(
+                concat([",", hardline]),
+                path.map(
+                  print,
+                  "callee",
+                  "object",
+                  "callee",
+                  "object",
+                  "arguments"
+                )
+              )
+            ])
+          ),
+          shouldPrintComma(options) ? "," : "",
+          hardline,
+          ")",
+          hardline,
+          ".requires(",
+          indent(
+            concat([
+              hardline,
+              join(
+                concat([",", hardline]),
+                path.map(print, "callee", "object", "arguments")
+              )
+            ])
+          ),
+          shouldPrintComma(options) ? "," : "",
+          hardline,
+          ")",
+          hardline,
+          ".defines(",
+          join(concat([",", hardline]), path.map(print, "arguments")),
+          ")"
+        ]);
+      }
+
+      if (
+        // ig.module(...).defines(...)
+        n.callee.type === "MemberExpression" &&
+        n.callee.property.type === "Identifier" &&
+        n.callee.property.name === "defines" &&
+        n.callee.object.type === "CallExpression" &&
+        n.callee.object.callee.type === "MemberExpression" &&
+        n.callee.object.callee.object.type === "Identifier" &&
+        n.callee.object.callee.object.name === "ig" &&
+        n.callee.object.callee.property.type === "Identifier" &&
+        n.callee.object.callee.property.name === "module" &&
+        n.arguments.length === 1 &&
+        (n.arguments[0].type === "FunctionExpression" ||
+          n.arguments[0].type === "ArrowFunctionExpression")
+      ) {
+        hackyImpactBlock.set(n.arguments[0].body, true);
+
+        return concat([
+          "ig.module(",
+          indent(
+            concat([
+              hardline,
+              join(
+                concat([",", hardline]),
+                path.map(print, "callee", "object", "arguments")
+              )
+            ])
+          ),
+          shouldPrintComma(options) ? "," : "",
+          hardline,
+          ")",
+          hardline,
+          ".defines(",
+          join(concat([",", hardline]), path.map(print, "arguments")),
+          ")"
+        ]);
+      }
 
       const optional = printOptionalToken(path);
       if (

@@ -10,6 +10,22 @@ ig.module(
 });
 
 ig.module(
+  // before
+  "game.entities.player"
+  // after
+)
+.requires(
+  // before
+  "impact.entity",
+  // between
+  "impact.animation"
+  // after
+)
+.defines(function() {
+  PlayerEntity = {};
+});
+
+ig.module(
   "game.entities.player"
 )
 .requires(
@@ -17,7 +33,9 @@ ig.module(
   "impact.animation"
 )
 .defines(() => {
+
   PlayerEntity = {};
+
 });
 
 ig.module(
@@ -25,11 +43,13 @@ ig.module(
 )
 .defines(function(){ "use strict";
   ig.Image = {};
+
 });
 
 ig.module(
 	'impact.image'
 )
 .defines(() => { "use strict";
+
   ig.Image = {};
 });
